@@ -17,7 +17,7 @@ func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", Index)
 	router.HandleFunc("/{file}", DownloadHandler)
-	router.HandleFunc("/{file}/stream", TailHandler)
+	router.HandleFunc("/{file}/tail", TailHandler)
 	log.Fatal(http.ListenAndServe("127.0.0.1:8080", router))
 }
 

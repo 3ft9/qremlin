@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"time"
 	"path"
-	"log"
 )
 
 func SetCommonHeaders(w http.ResponseWriter, filename string) {
@@ -32,7 +31,7 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values) {
 	defer f.Close()
 
 	// Set the default options.
-	query := options.Get("query")
+	query := options.Get("q")
 	numLinesStr := options.Get("n")
 	numLines := int64(0)
 	if len(numLinesStr) > 0 {
@@ -44,7 +43,41 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values) {
 	}
 
 	if numLines > 0 {
-		// Last n lines requested, so we need to seek back that many line feeds.
+		buffer := make([]byte, 1024)
+		offset, err := f.Seek(-1024, io.SeekEnd)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Failed to find the end of the file: %s", err)
+			return
+		}
+
+		for numLines > 0 {
+			if offset == 0 {
+				break
+			}
+			readBytes, err := f.ReadAt(buffer, offset)
+			if readBytes == 0 {
+				break
+			}
+			if err != nil && err != io.EOF {
+				w.WriteHeader(500)
+				fmt.Fprintf(w, "Failed to read part of the file: %s", err)
+				return
+			}
+			for i := readBytes - 1; i >= 0; i-- {
+				if buffer[i] == '\n' {
+					numLines -= 1
+					if numLines < 0 {
+						offset, err = f.Seek(int64(i) + 1, io.SeekCurrent)
+						break
+					}
+				}
+			}
+
+			if numLines > 0 {
+				offset, err = f.Seek(-1024, io.SeekCurrent)
+			}
+		}
 	}
 
 	if len(query) == 0 {
@@ -94,7 +127,7 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values) {
 	}
 	defer f.Close()
 
-	query := options.Get("query")
+	query := options.Get("q")
 	queryLen := len(query)
 
 	var flusher http.Flusher
@@ -144,20 +177,18 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values) {
 			for bufferPos := 0; bufferPos < readBytes; bufferPos++ {
 				lineBuffer[lineBufferPos] = buffer[bufferPos]
 				lineBufferPos += 1
-				if buffer[bufferPos] == '\r' || buffer[bufferPos] == '\n' {
+				if buffer[bufferPos] == '\n' {
 					if queryLen == 0 || strings.Contains(string(lineBuffer[:lineBufferPos]), query) {
 						thisChunk += string(lineBuffer[:lineBufferPos])
-					}
-					if buffer[bufferPos] == '\r' && buffer[bufferPos+1] == '\n' {
-						bufferPos += 1
 					}
 					lineBufferPos = 0
 				}
 			}
-			log.Print(thisChunk)
-			fmt.Fprint(w, thisChunk)
-			flusher.Flush()
+			if len(thisChunk) > 0 {
+				fmt.Fprint(w, thisChunk)
+				flusher.Flush()
+			}
 		}
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second)
 	}
 }
