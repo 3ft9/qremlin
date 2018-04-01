@@ -53,6 +53,7 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values) {
 
 		for numLines > 0 {
 			if offset == 0 {
+				offset, err = f.Seek(0, io.SeekStart)
 				break
 			}
 			readBytes, err := f.ReadAt(buffer, offset)
