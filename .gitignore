@@ -75,4 +75,7 @@ $RECYCLE.BIN/
 *.lnk
 
 # Idea
-.idea
+/.idea
+
+# Binary
+/qremlin

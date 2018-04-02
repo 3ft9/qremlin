@@ -14,13 +14,9 @@ import (
 
 func main() {
 	listenAddress := flag.String("listen", "0.0.0.0:64646", "The address on which to listen [<ip>]:<port>")
-	fileListFilename := flag.String("filelist", "", "The filename from which to load the file list")
+	fileListFilename := flag.String("filelist", "/etc/qremlin-filelist.conf", "The filename from which to load the file list")
 	bufferSize := *flag.Int64("bufsize", 1024, "The size of the buffers to be used when reading from log files")
 	flag.Parse()
-
-	if len(*fileListFilename) == 0 {
-		log.Fatal("No filelist supplied - no point starting!")
-	}
 
 	logfiles := GetFileList(fileListFilename)
 
@@ -42,6 +38,8 @@ func main() {
 			TailFile(w, filename, r.URL.Query(), bufferSize)
 		}
 	})
+
+	fmt.Printf("Server listening on %s...\n", *listenAddress)
 
 	log.Fatal(http.ListenAndServe(*listenAddress, router))
 }

@@ -19,7 +19,6 @@ func SetCommonHeaders(w http.ResponseWriter, filename string) {
 
 func RetrieveFile(w http.ResponseWriter, filename string, options url.Values, bufferSize int64) {
 	SetCommonHeaders(w, filename)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", path.Base(filename)))
 
 	// Open the file.
 	f, err := os.Open(filename)
@@ -44,9 +43,9 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values, bu
 
 	if numLines > 0 {
 		buffer := make([]byte, bufferSize)
-		offset, err := f.Seek(-bufferSize, io.SeekEnd)
+		offset, err := f.Seek(-bufferSize, 2)
 		if err != nil {
-			offset, err = f.Seek(0, io.SeekStart)
+			offset, err = f.Seek(0, 0)
 			if err != nil {
 				w.WriteHeader(500)
 				fmt.Fprintf(w, "Failed to find the end of the file: %s\n", err)
@@ -56,7 +55,7 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values, bu
 
 		for numLines > 0 {
 			if offset == 0 {
-				offset, err = f.Seek(0, io.SeekStart)
+				offset, err = f.Seek(0, 1)
 				break
 			}
 			readBytes, err := f.ReadAt(buffer, offset)
@@ -72,17 +71,19 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values, bu
 				if buffer[i] == '\n' {
 					numLines -= 1
 					if numLines < 0 {
-						offset, err = f.Seek(int64(i)+1, io.SeekCurrent)
+						offset, err = f.Seek(int64(i)+1, 1)
 						break
 					}
 				}
 			}
 
 			if numLines > 0 {
-				offset, err = f.Seek(-bufferSize, io.SeekCurrent)
+				offset, err = f.Seek(-bufferSize, 1)
 			}
 		}
 	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", path.Base(filename)))
 
 	if len(query) == 0 {
 		// Send without filtering.
@@ -142,7 +143,7 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values, buffer
 		return
 	}
 
-	offset, err := f.Seek(0, io.SeekEnd)
+	offset, err := f.Seek(0, 2)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Failed to seek to the end of the file.\n")
