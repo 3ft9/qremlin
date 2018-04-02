@@ -14,18 +14,18 @@ import (
 )
 
 func SetCommonHeaders(w http.ResponseWriter, filename string) {
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", path.Base(filename)))
 	w.Header().Set("Content-Type", "text/plain")
 }
 
-func RetrieveFile(w http.ResponseWriter, filename string, options url.Values) {
+func RetrieveFile(w http.ResponseWriter, filename string, options url.Values, bufferSize int64) {
 	SetCommonHeaders(w, filename)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", path.Base(filename)))
 
 	// Open the file.
 	f, err := os.Open(filename)
 	if err != nil {
 		w.WriteHeader(404)
-		fmt.Fprint(w, "File not found!")
+		fmt.Fprint(w, "File not found!\n")
 		return
 	}
 	defer f.Close()
@@ -37,18 +37,21 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values) {
 	if len(numLinesStr) > 0 {
 		if numLines, err = strconv.ParseInt(numLinesStr, 10, 64); err != nil {
 			w.WriteHeader(400)
-			fmt.Fprintf(w, "Invalid number of lines: %s!", err)
+			fmt.Fprintf(w, "Invalid number of lines: %s!\n", err)
 			return
 		}
 	}
 
 	if numLines > 0 {
-		buffer := make([]byte, 1024)
-		offset, err := f.Seek(-1024, io.SeekEnd)
+		buffer := make([]byte, bufferSize)
+		offset, err := f.Seek(-bufferSize, io.SeekEnd)
 		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "Failed to find the end of the file: %s", err)
-			return
+			offset, err = f.Seek(0, io.SeekStart)
+			if err != nil {
+				w.WriteHeader(500)
+				fmt.Fprintf(w, "Failed to find the end of the file: %s\n", err)
+				return
+			}
 		}
 
 		for numLines > 0 {
@@ -62,21 +65,21 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values) {
 			}
 			if err != nil && err != io.EOF {
 				w.WriteHeader(500)
-				fmt.Fprintf(w, "Failed to read part of the file: %s", err)
+				fmt.Fprintf(w, "Failed to read part of the file: %s\n", err)
 				return
 			}
 			for i := readBytes - 1; i >= 0; i-- {
 				if buffer[i] == '\n' {
 					numLines -= 1
 					if numLines < 0 {
-						offset, err = f.Seek(int64(i) + 1, io.SeekCurrent)
+						offset, err = f.Seek(int64(i)+1, io.SeekCurrent)
 						break
 					}
 				}
 			}
 
 			if numLines > 0 {
-				offset, err = f.Seek(-1024, io.SeekCurrent)
+				offset, err = f.Seek(-bufferSize, io.SeekCurrent)
 			}
 		}
 	}
@@ -89,7 +92,7 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values) {
 		var ok bool
 		if flusher, ok = w.(http.Flusher); !ok {
 			w.WriteHeader(500)
-			fmt.Fprintf(w, "Cannot flush, so cannot stream. Sorry.")
+			fmt.Fprintf(w, "Cannot flush, so cannot stream. Sorry.\n")
 			return
 		}
 
@@ -104,13 +107,13 @@ func RetrieveFile(w http.ResponseWriter, filename string, options url.Values) {
 		}
 		if err := scanner.Err(); err != nil {
 			w.WriteHeader(500)
-			fmt.Fprint(w, "Failed to read file!")
+			fmt.Fprint(w, "Failed to read file!\n")
 			return
 		}
 	}
 }
 
-func TailFile(w http.ResponseWriter, filename string, options url.Values) {
+func TailFile(w http.ResponseWriter, filename string, options url.Values, bufferSize int64) {
 	SetCommonHeaders(w, filename)
 
 	connectionClosed := false
@@ -123,7 +126,7 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values) {
 	f, err := os.Open(filename)
 	if err != nil {
 		w.WriteHeader(404)
-		fmt.Fprintf(w, "Failed to open file!")
+		fmt.Fprintf(w, "Failed to open file!\n")
 		return
 	}
 	defer f.Close()
@@ -135,13 +138,18 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values) {
 	var ok bool
 	if flusher, ok = w.(http.Flusher); !ok {
 		w.WriteHeader(500)
-		fmt.Fprintf(w, "Cannot flush, so cannot tail. Sorry.")
+		fmt.Fprintf(w, "Cannot flush, so cannot tail. Sorry.\n")
 		return
 	}
 
 	offset, err := f.Seek(0, io.SeekEnd)
-	buffer := make([]byte, 1024, 1024)
-	lineBuffer := make([]byte, 1024, 1024)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Failed to seek to the end of the file.\n")
+		return
+	}
+	buffer := make([]byte, bufferSize, bufferSize)
+	lineBuffer := make([]byte, bufferSize, bufferSize)
 	lineBufferPos := 0
 	for {
 		if connectionClosed {
@@ -150,7 +158,6 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values) {
 
 		fi, err := f.Stat()
 		if err != nil {
-			// Could not obtain stat, file has disappeared?
 			fmt.Fprintf(w, "---------------------\nFILE HAS DISAPPEARED!\n")
 			return
 		}
@@ -160,7 +167,7 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values) {
 			f.Close()
 			f, err = os.Open(filename)
 			if err != nil {
-				fmt.Fprintf(w, "(failed to reopen file)")
+				fmt.Fprintf(w, "(failed to reopen file)\n")
 				return
 			}
 		}
@@ -168,8 +175,8 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values) {
 		readBytes, err := f.ReadAt(buffer, offset)
 		if err != nil {
 			if err != io.EOF {
-				fmt.Println("Error reading lines:", err)
-				break
+				fmt.Fprintf(w, "(error reading from the file)\n")
+				return
 			}
 		}
 		offset += int64(readBytes)
