@@ -33,17 +33,12 @@ install -m 0755 %{name} -t %{buildroot}%{_bindir}
 install -m 0644 %{name}-filelist.conf -t %{buildroot}%{_sysconfdir}
 install -m 0644 %{name}.service -t %{buildroot}%{_unitdir}
 
-# %pre
-# %systemd_pre %{NAME}.service
+%post
+%systemd_post %{NAME}.service
+%systemd_postun_with_restart %{NAME}.service
 
-# %post
-# %systemd_post %{NAME}.service
-
-# %preun
-# %systemd_preun %{NAME}.service
-
-# %postun
-# %systemd_postun %{NAME}.service
+%postun
+%systemd_postun_with_restart %{NAME}.service
 
 %clean
 rm -rf $RPM_BUILD_ROOT

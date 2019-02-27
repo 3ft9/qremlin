@@ -181,12 +181,13 @@ func TailFile(w http.ResponseWriter, filename string, options url.Values, buffer
 			}
 		}
 		offset += int64(readBytes)
+
 		if readBytes != 0 {
 			thisChunk := ""
-			for bufferPos := 0; bufferPos < readBytes; bufferPos++ {
+			for bufferPos := int64(0); bufferPos < int64(readBytes); bufferPos++ {
 				lineBuffer[lineBufferPos] = buffer[bufferPos]
 				lineBufferPos += 1
-				if buffer[bufferPos] == '\n' {
+				if buffer[bufferPos] == '\n' || bufferPos == bufferSize {
 					if queryLen == 0 || strings.Contains(string(lineBuffer[:lineBufferPos]), query) {
 						thisChunk += string(lineBuffer[:lineBufferPos])
 					}

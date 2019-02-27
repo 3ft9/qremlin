@@ -20,7 +20,7 @@ func main() {
 	showVersion := flag.Bool("version", false, "Show the version number and exit")
 	listenAddress := flag.String("listen", "0.0.0.0:64646", "The address on which to listen [<ip>]:<port>")
 	fileListFilename := flag.String("filelist", "/etc/qremlin-filelist.conf", "The filename from which to load the file list")
-	bufferSize := *flag.Int64("bufsize", 1024, "The size of the buffers to be used when reading from log files")
+	bufferSize := *flag.Int64("bufsize", 10485760, "The size of the buffers to be used when reading from log files")
 	flag.Parse()
 
 	if *showVersion {
