@@ -8,7 +8,7 @@ mkdir -p ${TOPDIR}/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 chcon -Rt svirt_sandbox_file_t ${TOPDIR}
 
 ## TODO: Add a version to the code and grab it here!
-VERSION="1" # $(sed -n "s/^.*__version__ = '\(.*\)'.*/\1/p" zib/version.py)
+VERSION=$(sed -n 's/^.*VERSION = "\(.*\)".*/\1/p' src/main.go)
 
 mkdir -p /tmp/qremlin-${VERSION}
 cp -r * /tmp/qremlin-${VERSION}

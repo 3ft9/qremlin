@@ -33,10 +33,8 @@ which to filter the lines returned.
 
 ## TODO
 
-* Add a version number!
 * Tests and testing.
 * Support regular expression queries.
-* UI.
 * Websocket support for tailing.
 * Format dates into the log filenames.
 * Optionally download prepend previously rotated log files when downloading.

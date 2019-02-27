@@ -4,6 +4,7 @@ PORT=64646
 LOGFILE=messages
 FILTER=
 DOWNLOAD=/tail
+LIST=0
 
 urlencode_filter() {
   local string="${1}"
@@ -29,7 +30,9 @@ key="$1"
 
 case $key in
     -h|--help)
-        echo "Usage: $0 [-h|--help] [-s|--hostname] [-p|--port] [-f|--file] [-d|--download] [filter]"
+        echo "qremlin-client"
+        echo
+        echo "Usage: $0 [-h|--help] [-l|--list] [-s|--hostname] [-p|--port] [-f|--file] [-d|--download] [filter]"
         echo
         echo "- Log output is to stdout, client messages go to stderr."
         echo "- File must correspond to a pre-defined file made available by the server."
@@ -63,6 +66,10 @@ case $key in
         DOWNLOAD=""
         shift
         ;;
+    -l|--list)
+        LIST=1
+        shift
+        ;;
     *)
         POSITIONAL+=("$1")
         shift
@@ -70,15 +77,21 @@ case $key in
 esac
 done
 
-(>&2 echo "Connecting to ${SERVER}:${PORT} to tail the ${LOGFILE} file filtering for '${POSITIONAL[@]}'...")
+if [[ "${LIST}" == "1" ]];
+then
+    curl -Ss "http://${SERVER}:${PORT}/"
+else
+    (>&2 echo "Connecting to ${SERVER}:${PORT} to tail the ${LOGFILE} file filtering for '${POSITIONAL[@]}'...")
 
-urlencode_filter "${POSITIONAL[@]}"
-while :
-do
-    curl -Ss "http://${SERVER}:${PORT}/${LOGFILE}${DOWNLOAD}?q=${FILTER}"
-    if [[ "$?" != "18" ]];
-    then
-        exit $?
-    fi
-    (>&2 echo 'Reconnecting...')
-done
+    urlencode_filter "${POSITIONAL[@]}"
+    while :
+    do
+        curl -Ss "http://${SERVER}:${PORT}/${LOGFILE}${DOWNLOAD}?q=${FILTER}"
+        if [[ "$?" != "18" && "$?" != "52" ]];
+        then
+            exit $?
+        fi
+        (>&2 echo 'Reconnecting...')
+        sleep 5
+    done
+fi
