@@ -26,13 +26,20 @@ of lines to return from the end of the file.
 Both URLs can take a query parameter of `q` which specifies a string by
 which to filter the lines returned.
 
+## Known issues
+
+* Panics when filtering.
+* RPM package does not start/stop/disable the systemd unit on install/uninstall.
+
 ## TODO
 
+* Add a version number!
 * Tests and testing.
 * Support regular expression queries.
 * UI.
 * Websocket support for tailing.
 * Format dates into the log filenames.
+* Optionally download prepend previously rotated log files when downloading.
 
 ## License
 

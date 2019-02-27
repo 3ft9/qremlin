@@ -1,0 +1,84 @@
+#!/bin/bash
+SERVER=127.0.0.1
+PORT=64646
+LOGFILE=messages
+FILTER=
+DOWNLOAD=/tail
+
+urlencode_filter() {
+  local string="${1}"
+  local strlen=${#string}
+  local encoded=""
+  local pos c o
+
+  for (( pos=0 ; pos<strlen ; pos++ )); do
+     c=${string:$pos:1}
+     case "$c" in
+        [-_.~a-zA-Z0-9] ) o="${c}" ;;
+        * )               printf -v o '%%%02x' "'$c"
+     esac
+     encoded+="${o}"
+  done
+  FILTER="${encoded}"
+}
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    -h|--help)
+        echo "Usage: $0 [-h|--help] [-s|--hostname] [-p|--port] [-f|--file] [-d|--download] [filter]"
+        echo
+        echo "- Log output is to stdout, client messages go to stderr."
+        echo "- File must correspond to a pre-defined file made available by the server."
+        echo "- Specify -d or --download to download the the log instead of tailing it."
+        echo
+        echo "Defaults:"
+        echo "    --server=${SERVER}"
+        echo "    --port=${PORT}"
+        echo "    --file=${LOGFILE}"
+        echo "    filter=(none)"
+        echo
+        echo "Requires curl to be installed!"
+        exit 1;
+        ;;
+    -s|--server)
+        SERVER="$2"
+        shift
+        shift
+        ;;
+    -p|--port)
+        PORT="$2"
+        shift
+        shift
+        ;;
+    -f|--file)
+        LOGFILE="$2"
+        shift
+        shift
+        ;;
+    -d|--download)
+        DOWNLOAD=""
+        shift
+        ;;
+    *)
+        POSITIONAL+=("$1")
+        shift
+        ;;
+esac
+done
+
+(>&2 echo "Connecting to ${SERVER}:${PORT} to tail the ${LOGFILE} file filtering for '${POSITIONAL[@]}'...")
+
+urlencode_filter "${POSITIONAL[@]}"
+while :
+do
+    curl -Ss "http://${SERVER}:${PORT}/${LOGFILE}${DOWNLOAD}?q=${FILTER}"
+    if [[ "$?" != "18" ]];
+    then
+        exit $?
+    fi
+    (>&2 echo 'Reconnecting...')
+done

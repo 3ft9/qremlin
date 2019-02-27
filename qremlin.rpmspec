@@ -1,0 +1,55 @@
+%define name qremlin
+%define version {{VERSION}}
+%define release 1
+
+Summary: Remote log access
+Name: %{name}
+Version: %{version}
+Release: %{release}
+Source0: %{name}-%{version}.tar.gz
+License: Public Domain
+Group: Development/Libraries
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
+Prefix: %{_prefix}
+Vendor: 3ft9 Ltd <hello@3ft9.com>
+Url: http://3ft9.com/
+Requires: systemd
+BuildRequires: systemd
+
+%{?systemd_requires}
+
+%description
+An HTTP server that provides download and tail access to log files.
+
+%prep
+%setup -n %{name}-%{version} -n %{name}-%{version}
+
+%build
+sh build_static.sh
+
+%install
+mkdir -p %{buildroot}%{_bindir} %{buildroot}%{_bindir} %{buildroot}%{_sysconfdir} %{buildroot}%{_unitdir}
+install -m 0755 %{name} -t %{buildroot}%{_bindir}
+install -m 0644 %{name}-filelist.conf -t %{buildroot}%{_sysconfdir}
+install -m 0644 %{name}.service -t %{buildroot}%{_unitdir}
+
+# %pre
+# %systemd_pre %{NAME}.service
+
+# %post
+# %systemd_post %{NAME}.service
+
+# %preun
+# %systemd_preun %{NAME}.service
+
+# %postun
+# %systemd_postun %{NAME}.service
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-,root,root)
+%{_prefix}/bin/%{name}
+%{_sysconfdir}/%{name}-filelist.conf
+%{_unitdir}/%{name}.service

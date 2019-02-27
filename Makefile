@@ -23,6 +23,6 @@ vet:
 
 build:
 	@echo ">> building code"
-	cd src && go build -o ../qremlin -a
+	cd src && go get ./... && GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../qremlin -a
 
 .PHONY: all style format test vet build

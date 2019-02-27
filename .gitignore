@@ -79,3 +79,4 @@ $RECYCLE.BIN/
 
 # Binary
 /qremlin
+*.rpm
